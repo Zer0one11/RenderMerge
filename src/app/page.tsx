@@ -1,8 +1,6 @@
-export const dynamic = 'force-static';
 "use client";
 
-
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
@@ -12,7 +10,14 @@ export default function MediaMerger() {
   const [language, setLanguage] = useState<'ru' | 'en'>('ru');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const ffmpegRef = useRef(new FFmpeg());
+  
+  // Создаем ref, но не инициализируем FFmpeg сразу
+  const ffmpegRef = useRef<FFmpeg | null>(null);
+
+  useEffect(() => {
+    // Инициализируем объект только на клиенте
+    ffmpegRef.current = new FFmpeg();
+  }, []);
 
   const texts = {
     ru: {
@@ -40,6 +45,8 @@ export default function MediaMerger() {
   const load = async () => {
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
     const ffmpeg = ffmpegRef.current;
+    if (!ffmpeg) return;
+
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -48,9 +55,10 @@ export default function MediaMerger() {
   };
 
   const process = async () => {
-    if (!videoFile || !audioFile) return;
-    setProcessing(true);
     const ffmpeg = ffmpegRef.current;
+    if (!ffmpeg || !videoFile || !audioFile) return;
+    
+    setProcessing(true);
 
     await ffmpeg.writeFile('v_in.mp4', await fetchFile(videoFile));
     await ffmpeg.writeFile('a_in.mp3', await fetchFile(audioFile));
