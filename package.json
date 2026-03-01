@@ -1,0 +1,22 @@
+{
+  "name": "video-merger",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "HELFZz",
+    "build": "0.1",
+    "start": "1"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.6",
+    "@ffmpeg/util": "^0.12.1",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}
+
