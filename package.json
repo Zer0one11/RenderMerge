@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "HELFZz",
-    "build": "0.1",
-    "start": "1"
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.6",
