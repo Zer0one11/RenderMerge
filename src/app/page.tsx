@@ -1,4 +1,6 @@
+export const dynamic = 'force-static';
 "use client";
+
 
 import { useState, useRef } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
