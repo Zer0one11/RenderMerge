@@ -9,7 +9,8 @@ export default function MediaMerger() {
   const [processing, setProcessing] = useState(false);
   const [language, setLanguage] = useState<'ru' | 'en'>('ru');
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioFile1, setAudioFile1] = useState<File | null>(null);
+  const [audioFile2, setAudioFile2] = useState<File | null>(null);
   const [loadStatus, setLoadStatus] = useState('');
   
   const ffmpegRef = useRef<FFmpeg | null>(null);
@@ -18,9 +19,7 @@ export default function MediaMerger() {
     const initFFmpeg = async () => {
       const ffmpeg = new FFmpeg();
       ffmpegRef.current = ffmpeg;
-      
       const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-      
       try {
         await ffmpeg.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
@@ -28,11 +27,9 @@ export default function MediaMerger() {
         });
         setLoaded(true);
       } catch (e) {
-        console.error(e);
         setLoadStatus('Error loading system components');
       }
     };
-
     initFFmpeg();
   }, []);
 
@@ -41,19 +38,19 @@ export default function MediaMerger() {
       title: 'СЕРВИС ОБРАБОТКИ МЕДИА',
       loading: 'ИНИЦИАЛИЗАЦИЯ...',
       video: 'ВИДЕОФАЙЛ',
-      audio: 'АУДИОФАЙЛ',
+      audio1: 'АУДИОДОРОЖКА 1 (ОСНОВНАЯ)',
+      audio2: 'АУДИОДОРОЖКА 2 (ДОПОЛНИТЕЛЬНО)',
       start: 'ВЫПОЛНИТЬ СШИВАНИЕ',
       status: 'РЕНДЕРИНГ...',
-      done: 'ОБРАБОТКА ЗАВЕРШЕНА'
     },
     en: {
       title: 'MEDIA PROCESSING SERVICE',
       loading: 'INITIALIZING...',
       video: 'VIDEO FILE',
-      audio: 'AUDIO FILE',
+      audio1: 'AUDIO TRACK 1 (MAIN)',
+      audio2: 'AUDIO TRACK 2 (OPTIONAL)',
       start: 'START MERGE',
       status: 'RENDERING...',
-      done: 'PROCESSING COMPLETED'
     }
   };
 
@@ -61,28 +58,40 @@ export default function MediaMerger() {
 
   const process = async () => {
     const ffmpeg = ffmpegRef.current;
-    if (!ffmpeg || !videoFile || !audioFile) return;
-    
+    if (!ffmpeg || !videoFile || !audioFile1) return;
     setProcessing(true);
 
     try {
       await ffmpeg.writeFile('v_in', await fetchFile(videoFile));
-      await ffmpeg.writeFile('a_in', await fetchFile(audioFile));
-
-      await ffmpeg.exec([
+      await ffmpeg.writeFile('a1_in', await fetchFile(audioFile1));
+      
+      const args = [
         '-i', 'v_in',
-        '-i', 'a_in',
-        '-c:v', 'copy',
-        '-c:a', 'aac',
-        '-map', '0:v:0',
-        '-map', '1:a:0',
-        '-shortest',
-        'out.mp4'
-      ]);
+        '-i', 'a1_in',
+      ];
+
+      if (audioFile2) {
+        await ffmpeg.writeFile('a2_in', await fetchFile(audioFile2));
+        args.push('-i', 'a2_in');
+      }
+
+      // Базовые аргументы: копируем видео, аудио в AAC
+      args.push('-c:v', 'copy', '-c:a', 'aac');
+
+      // Маппинг потоков
+      args.push('-map', '0:v:0'); // Видео из 1-го файла
+      args.push('-map', '1:a:0'); // Аудио из 2-го файла (первая дорожка)
+      
+      if (audioFile2) {
+        args.push('-map', '2:a:0'); // Аудио из 3-го файла (вторая дорожка)
+      }
+
+      args.push('-shortest', 'out.mp4');
+
+      await ffmpeg.exec(args);
 
       const data = await ffmpeg.readFile('out.mp4');
       const url = URL.createObjectURL(new Blob([(data as any).buffer], { type: 'video/mp4' }));
-      
       const link = document.createElement('a');
       link.href = url;
       link.download = `result_${Date.now()}.mp4`;
@@ -95,14 +104,7 @@ export default function MediaMerger() {
   };
 
   return (
-    <div style={{ 
-      maxWidth: '400px', 
-      margin: '40px auto', 
-      fontFamily: 'Courier, monospace', 
-      padding: '20px', 
-      border: '1px solid #000',
-      backgroundColor: '#fff'
-    }}>
+    <div style={{ maxWidth: '400px', margin: '40px auto', fontFamily: 'Courier, monospace', padding: '20px', border: '1px solid #000', backgroundColor: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
         <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{t.title}</span>
         <div>
@@ -119,46 +121,26 @@ export default function MediaMerger() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.video}</label>
-            <input 
-              type="file" 
-              // Используем только расширения, чтобы не триггерить галерею напрямую
-              accept=".mp4,.mov,.mkv,.webm,.avi" 
-              onChange={(e) => setVideoFile(e.target.files?.[0] || null)} 
-              style={{ width: '100%', fontSize: '12px' }}
-            />
+            <input type="file" accept=".mp4,.mov,.mkv,.webm,.avi" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} style={{ width: '100%', fontSize: '12px' }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.audio}</label>
-            <input 
-              type="file" 
-              accept=".mp3,.wav,.m4a,.ogg,.aac" 
-              onChange={(e) => setAudioFile(e.target.files?.[0] || null)} 
-              style={{ width: '100%', fontSize: '12px' }}
-            />
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.audio1}</label>
+            <input type="file" accept=".mp3,.wav,.m4a,.ogg,.aac" onChange={(e) => setAudioFile1(e.target.files?.[0] || null)} style={{ width: '100%', fontSize: '12px' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.audio2}</label>
+            <input type="file" accept=".mp3,.wav,.m4a,.ogg,.aac" onChange={(e) => setAudioFile2(e.target.files?.[0] || null)} style={{ width: '100%', fontSize: '12px' }} />
           </div>
           <button 
-            disabled={processing || !videoFile || !audioFile} 
+            disabled={processing || !videoFile || !audioFile1} 
             onClick={process}
-            style={{ 
-              padding: '12px', 
-              background: processing ? '#888' : '#000', 
-              color: '#fff', 
-              border: 'none', 
-              cursor: processing ? 'default' : 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}
+            style={{ padding: '12px', background: processing ? '#888' : '#000', color: '#fff', border: 'none', cursor: processing ? 'default' : 'pointer', fontSize: '12px', fontWeight: 'bold' }}
           >
             {processing ? t.status : t.start}
           </button>
         </div>
       )}
-      
-      {processing && (
-        <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666', textTransform: 'uppercase' }}>
-          процесс выполняется локально. не закрывайте страницу.
-        </div>
-      )}
+      {processing && <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666' }}>ЛОКАЛЬНАЯ ОБРАБОТКА...</div>}
     </div>
   );
 }
