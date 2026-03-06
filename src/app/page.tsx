@@ -39,18 +39,18 @@ export default function MediaMerger() {
   const texts = {
     ru: {
       title: 'СЕРВИС ОБРАБОТКИ МЕДИА',
-      loading: 'ЗАГРУЗКА СИСТЕМЫ...',
-      video: 'ВИДЕО (ГАЛЕРЕЯ ИЛИ ФАЙЛЫ)',
-      audio: 'АУДИО (ТОЛЬКО ФАЙЛЫ)',
+      loading: 'ИНИЦИАЛИЗАЦИЯ...',
+      video: 'ВИДЕОФАЙЛ',
+      audio: 'АУДИОФАЙЛ',
       start: 'ВЫПОЛНИТЬ СШИВАНИЕ',
       status: 'РЕНДЕРИНГ...',
       done: 'ОБРАБОТКА ЗАВЕРШЕНА'
     },
     en: {
       title: 'MEDIA PROCESSING SERVICE',
-      loading: 'LOADING SYSTEM...',
-      video: 'VIDEO (GALLERY OR FILES)',
-      audio: 'AUDIO (FILES ONLY)',
+      loading: 'INITIALIZING...',
+      video: 'VIDEO FILE',
+      audio: 'AUDIO FILE',
       start: 'START MERGE',
       status: 'RENDERING...',
       done: 'PROCESSING COMPLETED'
@@ -66,13 +66,12 @@ export default function MediaMerger() {
     setProcessing(true);
 
     try {
-      await ffmpeg.writeFile('v_in.mp4', await fetchFile(videoFile));
-      await ffmpeg.writeFile('a_in.mp3', await fetchFile(audioFile));
+      await ffmpeg.writeFile('v_in', await fetchFile(videoFile));
+      await ffmpeg.writeFile('a_in', await fetchFile(audioFile));
 
-      // Команда copy для мгновенной склейки без потери качества
       await ffmpeg.exec([
-        '-i', 'v_in.mp4',
-        '-i', 'a_in.mp3',
+        '-i', 'v_in',
+        '-i', 'a_in',
         '-c:v', 'copy',
         '-c:a', 'aac',
         '-map', '0:v:0',
@@ -98,41 +97,41 @@ export default function MediaMerger() {
   return (
     <div style={{ 
       maxWidth: '400px', 
-      margin: '60px auto', 
+      margin: '40px auto', 
       fontFamily: 'Courier, monospace', 
-      padding: '25px', 
+      padding: '20px', 
       border: '1px solid #000',
       backgroundColor: '#fff'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
-        <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{t.title}</span>
+        <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{t.title}</span>
         <div>
-          <button onClick={() => setLanguage('ru')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px', textDecoration: language === 'ru' ? 'underline' : 'none' }}>RU</button>
-          <button onClick={() => setLanguage('en')} style={{ border: 'none', background: 'none', cursor: 'pointer', marginLeft: '10px', fontSize: '12px', textDecoration: language === 'en' ? 'underline' : 'none' }}>EN</button>
+          <button onClick={() => setLanguage('ru')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '11px', textDecoration: language === 'ru' ? 'underline' : 'none' }}>RU</button>
+          <button onClick={() => setLanguage('en')} style={{ border: 'none', background: 'none', cursor: 'pointer', marginLeft: '10px', fontSize: '11px', textDecoration: language === 'en' ? 'underline' : 'none' }}>EN</button>
         </div>
       </div>
 
       {!loaded ? (
-        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #000', fontSize: '12px' }}>
+        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #000', fontSize: '11px' }}>
           {loadStatus || t.loading}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '11px', marginBottom: '8px', fontWeight: 'bold' }}>{t.video}</label>
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.video}</label>
             <input 
               type="file" 
-              // Комбинированный accept для вызова системного меню выбора на Android/iOS
-              accept="video/mp4,video/x-m4v,video/*" 
+              // Используем только расширения, чтобы не триггерить галерею напрямую
+              accept=".mp4,.mov,.mkv,.webm,.avi" 
               onChange={(e) => setVideoFile(e.target.files?.[0] || null)} 
               style={{ width: '100%', fontSize: '12px' }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '11px', marginBottom: '8px', fontWeight: 'bold' }}>{t.audio}</label>
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '5px', fontWeight: 'bold' }}>{t.audio}</label>
             <input 
               type="file" 
-              accept="audio/*,.mp3,.wav,.m4a" 
+              accept=".mp3,.wav,.m4a,.ogg,.aac" 
               onChange={(e) => setAudioFile(e.target.files?.[0] || null)} 
               style={{ width: '100%', fontSize: '12px' }}
             />
@@ -146,7 +145,7 @@ export default function MediaMerger() {
               color: '#fff', 
               border: 'none', 
               cursor: processing ? 'default' : 'pointer',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 'bold'
             }}
           >
@@ -156,8 +155,8 @@ export default function MediaMerger() {
       )}
       
       {processing && (
-        <div style={{ marginTop: '15px', fontSize: '10px', textAlign: 'center', color: '#666' }}>
-          НЕ ЗАКРЫВАЙТЕ ВКЛАДКУ ДО ЗАВЕРШЕНИЯ
+        <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666', textTransform: 'uppercase' }}>
+          процесс выполняется локально. не закрывайте страницу.
         </div>
       )}
     </div>
