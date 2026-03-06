@@ -14,7 +14,6 @@ export default function MediaMerger() {
   
   const ffmpegRef = useRef<FFmpeg | null>(null);
 
-  // Автоматическая загрузка компонентов при старте
   useEffect(() => {
     const initFFmpeg = async () => {
       const ffmpeg = new FFmpeg();
@@ -30,7 +29,7 @@ export default function MediaMerger() {
         setLoaded(true);
       } catch (e) {
         console.error(e);
-        setLoadStatus('Error loading components');
+        setLoadStatus('Error loading system components');
       }
     };
 
@@ -45,7 +44,7 @@ export default function MediaMerger() {
       audio: 'АУДИО (ТОЛЬКО ФАЙЛЫ)',
       start: 'ВЫПОЛНИТЬ СШИВАНИЕ',
       status: 'РЕНДЕРИНГ...',
-      done: 'ГОТОВО'
+      done: 'ОБРАБОТКА ЗАВЕРШЕНА'
     },
     en: {
       title: 'MEDIA PROCESSING SERVICE',
@@ -54,7 +53,7 @@ export default function MediaMerger() {
       audio: 'AUDIO (FILES ONLY)',
       start: 'START MERGE',
       status: 'RENDERING...',
-      done: 'DONE'
+      done: 'PROCESSING COMPLETED'
     }
   };
 
@@ -66,73 +65,99 @@ export default function MediaMerger() {
     
     setProcessing(true);
 
-    await ffmpeg.writeFile('v_in.mp4', await fetchFile(videoFile));
-    await ffmpeg.writeFile('a_in.mp3', await fetchFile(audioFile));
+    try {
+      await ffmpeg.writeFile('v_in.mp4', await fetchFile(videoFile));
+      await ffmpeg.writeFile('a_in.mp3', await fetchFile(audioFile));
 
-    await ffmpeg.exec([
-      '-i', 'v_in.mp4',
-      '-i', 'a_in.mp3',
-      '-c:v', 'copy',
-      '-c:a', 'aac',
-      '-map', '0:v:0',
-      '-map', '1:a:0',
-      '-shortest',
-      'out.mp4'
-    ]);
+      // Команда copy для мгновенной склейки без потери качества
+      await ffmpeg.exec([
+        '-i', 'v_in.mp4',
+        '-i', 'a_in.mp3',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-shortest',
+        'out.mp4'
+      ]);
 
-    const data = await ffmpeg.readFile('out.mp4');
-    const url = URL.createObjectURL(new Blob([(data as any).buffer], { type: 'video/mp4' }));
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'render_result.mp4';
-    link.click();
-    setProcessing(false);
+      const data = await ffmpeg.readFile('out.mp4');
+      const url = URL.createObjectURL(new Blob([(data as any).buffer], { type: 'video/mp4' }));
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `result_${Date.now()}.mp4`;
+      link.click();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '60px auto', fontFamily: 'Courier, monospace', padding: '20px', border: '1px solid #000' }}>
+    <div style={{ 
+      maxWidth: '400px', 
+      margin: '60px auto', 
+      fontFamily: 'Courier, monospace', 
+      padding: '25px', 
+      border: '1px solid #000',
+      backgroundColor: '#fff'
+    }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
-        <span style={{ fontWeight: 'bold' }}>{t.title}</span>
+        <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{t.title}</span>
         <div>
-          <button onClick={() => setLanguage('ru')} style={{ border: 'none', background: 'none', cursor: 'pointer', textDecoration: language === 'ru' ? 'underline' : 'none' }}>RU</button>
-          <button onClick={() => setLanguage('en')} style={{ border: 'none', background: 'none', cursor: 'pointer', marginLeft: '10px', textDecoration: language === 'en' ? 'underline' : 'none' }}>EN</button>
+          <button onClick={() => setLanguage('ru')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px', textDecoration: language === 'ru' ? 'underline' : 'none' }}>RU</button>
+          <button onClick={() => setLanguage('en')} style={{ border: 'none', background: 'none', cursor: 'pointer', marginLeft: '10px', fontSize: '12px', textDecoration: language === 'en' ? 'underline' : 'none' }}>EN</button>
         </div>
       </div>
 
       {!loaded ? (
-        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #000' }}>
+        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #000', fontSize: '12px' }}>
           {loadStatus || t.loading}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px' }}>{t.video}</label>
-            {/* Атрибут accept="video/*" вызывает выбор из галереи/файлов на смартфоне */}
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '8px', fontWeight: 'bold' }}>{t.video}</label>
             <input 
               type="file" 
-              accept="video/*" 
+              // Комбинированный accept для вызова системного меню выбора на Android/iOS
+              accept="video/mp4,video/x-m4v,video/*" 
               onChange={(e) => setVideoFile(e.target.files?.[0] || null)} 
-              style={{ width: '100%' }}
+              style={{ width: '100%', fontSize: '12px' }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px' }}>{t.audio}</label>
-            {/* Для аудио используем стандартный выбор файлов */}
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '8px', fontWeight: 'bold' }}>{t.audio}</label>
             <input 
               type="file" 
-              accept="audio/*" 
+              accept="audio/*,.mp3,.wav,.m4a" 
               onChange={(e) => setAudioFile(e.target.files?.[0] || null)} 
-              style={{ width: '100%' }}
+              style={{ width: '100%', fontSize: '12px' }}
             />
           </div>
           <button 
             disabled={processing || !videoFile || !audioFile} 
             onClick={process}
-            style={{ padding: '12px', background: processing ? '#888' : '#000', color: '#fff', border: 'none', cursor: 'pointer' }}
+            style={{ 
+              padding: '12px', 
+              background: processing ? '#888' : '#000', 
+              color: '#fff', 
+              border: 'none', 
+              cursor: processing ? 'default' : 'pointer',
+              fontSize: '13px',
+              fontWeight: 'bold'
+            }}
           >
             {processing ? t.status : t.start}
           </button>
+        </div>
+      )}
+      
+      {processing && (
+        <div style={{ marginTop: '15px', fontSize: '10px', textAlign: 'center', color: '#666' }}>
+          НЕ ЗАКРЫВАЙТЕ ВКЛАДКУ ДО ЗАВЕРШЕНИЯ
         </div>
       )}
     </div>
