@@ -10,30 +10,48 @@ export default function MediaMerger() {
   const [language, setLanguage] = useState<'ru' | 'en'>('ru');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [loadStatus, setLoadStatus] = useState('');
   
-  // Создаем ref, но не инициализируем FFmpeg сразу
   const ffmpegRef = useRef<FFmpeg | null>(null);
 
+  // Автоматическая загрузка компонентов при старте
   useEffect(() => {
-    // Инициализируем объект только на клиенте
-    ffmpegRef.current = new FFmpeg();
+    const initFFmpeg = async () => {
+      const ffmpeg = new FFmpeg();
+      ffmpegRef.current = ffmpeg;
+      
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+      
+      try {
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        setLoaded(true);
+      } catch (e) {
+        console.error(e);
+        setLoadStatus('Error loading components');
+      }
+    };
+
+    initFFmpeg();
   }, []);
 
   const texts = {
     ru: {
       title: 'СЕРВИС ОБРАБОТКИ МЕДИА',
-      load: 'ЗАГРУЗИТЬ КОМПОНЕНТЫ',
-      video: 'ВИДЕОФАЙЛ',
-      audio: 'АУДИОФАЙЛ',
+      loading: 'ЗАГРУЗКА СИСТЕМЫ...',
+      video: 'ВИДЕО (ГАЛЕРЕЯ ИЛИ ФАЙЛЫ)',
+      audio: 'АУДИО (ТОЛЬКО ФАЙЛЫ)',
       start: 'ВЫПОЛНИТЬ СШИВАНИЕ',
       status: 'РЕНДЕРИНГ...',
       done: 'ГОТОВО'
     },
     en: {
       title: 'MEDIA PROCESSING SERVICE',
-      load: 'LOAD COMPONENTS',
-      video: 'VIDEO FILE',
-      audio: 'AUDIO FILE',
+      loading: 'LOADING SYSTEM...',
+      video: 'VIDEO (GALLERY OR FILES)',
+      audio: 'AUDIO (FILES ONLY)',
       start: 'START MERGE',
       status: 'RENDERING...',
       done: 'DONE'
@@ -41,18 +59,6 @@ export default function MediaMerger() {
   };
 
   const t = texts[language];
-
-  const load = async () => {
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-    const ffmpeg = ffmpegRef.current;
-    if (!ffmpeg) return;
-
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
-    setLoaded(true);
-  };
 
   const process = async () => {
     const ffmpeg = ffmpegRef.current;
@@ -95,18 +101,30 @@ export default function MediaMerger() {
       </div>
 
       {!loaded ? (
-        <button onClick={load} style={{ width: '100%', padding: '12px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer' }}>
-          {t.load}
-        </button>
+        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #000' }}>
+          {loadStatus || t.loading}
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px' }}>{t.video}</label>
-            <input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} />
+            {/* Атрибут accept="video/*" вызывает выбор из галереи/файлов на смартфоне */}
+            <input 
+              type="file" 
+              accept="video/*" 
+              onChange={(e) => setVideoFile(e.target.files?.[0] || null)} 
+              style={{ width: '100%' }}
+            />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px' }}>{t.audio}</label>
-            <input type="file" accept="audio/*" onChange={(e) => setAudioFile(e.target.files?.[0] || null)} />
+            {/* Для аудио используем стандартный выбор файлов */}
+            <input 
+              type="file" 
+              accept="audio/*" 
+              onChange={(e) => setAudioFile(e.target.files?.[0] || null)} 
+              style={{ width: '100%' }}
+            />
           </div>
           <button 
             disabled={processing || !videoFile || !audioFile} 
