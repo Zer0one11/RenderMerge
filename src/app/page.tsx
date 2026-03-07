@@ -65,28 +65,30 @@ export default function MediaMerger() {
       await ffmpeg.writeFile('v_in', await fetchFile(videoFile));
       await ffmpeg.writeFile('a1_in', await fetchFile(audioFile1));
       
-      const args = [
-        '-i', 'v_in',
-        '-i', 'a1_in',
-      ];
+      let args = ['-i', 'v_in', '-i', 'a1_in'];
 
       if (audioFile2) {
         await ffmpeg.writeFile('a2_in', await fetchFile(audioFile2));
         args.push('-i', 'a2_in');
       }
 
-      // Базовые аргументы: копируем видео, аудио в AAC
+      // Видео копируем (без потери качества), аудио в AAC
       args.push('-c:v', 'copy', '-c:a', 'aac');
 
-      // Маппинг потоков
-      args.push('-map', '0:v:0'); // Видео из 1-го файла
-      args.push('-map', '1:a:0'); // Аудио из 2-го файла (первая дорожка)
+      // Мапинг:
+      args.push('-map', '0:v:0'); // Берем видео
+      args.push('-map', '1:a:0'); // Берем первый звук
       
       if (audioFile2) {
-        args.push('-map', '2:a:0'); // Аудио из 3-го файла (вторая дорожка)
+        args.push('-map', '2:a:0'); // Берем второй звук
       }
 
-      args.push('-shortest', 'out.mp4');
+      // КЛЮЧЕВОЙ МОМЕНТ: Обрезать всё под длину самого короткого потока.
+      // Поскольку видео обычно — это то, под что мы подстраиваемся, 
+      // результат будет идти ровно столько, сколько длится видео или звук (что короче).
+      args.push('-shortest');
+      
+      args.push('out.mp4');
 
       await ffmpeg.exec(args);
 
@@ -94,7 +96,7 @@ export default function MediaMerger() {
       const url = URL.createObjectURL(new Blob([(data as any).buffer], { type: 'video/mp4' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `result_${Date.now()}.mp4`;
+      link.download = `merged_${Date.now()}.mp4`;
       link.click();
     } catch (error) {
       console.error(error);
@@ -140,7 +142,7 @@ export default function MediaMerger() {
           </button>
         </div>
       )}
-      {processing && <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666' }}>ЛОКАЛЬНАЯ ОБРАБОТКА...</div>}
+      {processing && <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666' }}>РЕНДЕРИНГ...</div>}
     </div>
   );
 }
