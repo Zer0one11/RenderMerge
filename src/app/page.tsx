@@ -27,7 +27,7 @@ export default function MediaMerger() {
         });
         setLoaded(true);
       } catch (e) {
-        setLoadStatus('Error loading system components');
+        setLoadStatus('Ошибка загрузки компонентов');
       }
     };
     initFFmpeg();
@@ -38,8 +38,8 @@ export default function MediaMerger() {
       title: 'СЕРВИС ОБРАБОТКИ МЕДИА',
       loading: 'ИНИЦИАЛИЗАЦИЯ...',
       video: 'ВИДЕОФАЙЛ',
-      audio1: 'АУДИОДОРОЖКА 1 (ОСНОВНАЯ)',
-      audio2: 'АУДИОДОРОЖКА 2 (ДОПОЛНИТЕЛЬНО)',
+      audio1: 'ЗВУК 1 (ОСНОВНОЙ)',
+      audio2: 'ЗВУК 2 (НАЛОЖЕНИЕ)',
       start: 'ВЫПОЛНИТЬ СШИВАНИЕ',
       status: 'РЕНДЕРИНГ...',
     },
@@ -47,8 +47,8 @@ export default function MediaMerger() {
       title: 'MEDIA PROCESSING SERVICE',
       loading: 'INITIALIZING...',
       video: 'VIDEO FILE',
-      audio1: 'AUDIO TRACK 1 (MAIN)',
-      audio2: 'AUDIO TRACK 2 (OPTIONAL)',
+      audio1: 'AUDIO 1 (MAIN)',
+      audio2: 'AUDIO 2 (OVERLAY)',
       start: 'START MERGE',
       status: 'RENDERING...',
     }
@@ -70,25 +70,21 @@ export default function MediaMerger() {
       if (audioFile2) {
         await ffmpeg.writeFile('a2_in', await fetchFile(audioFile2));
         args.push('-i', 'a2_in');
+        
+        // Наслаиваем два звука друг на друга (amix)
+        // duration=first означает, что звук закончится вместе с видео (первым входом)
+        args.push(
+          '-filter_complex', '[1:a][2:a]amix=inputs=2:duration=first[aout]',
+          '-map', '0:v:0',
+          '-map', '[aout]'
+        );
+      } else {
+        // Если только один звук - просто подставляем его
+        args.push('-map', '0:v:0', '-map', '1:a:0');
       }
 
-      // Видео копируем (без потери качества), аудио в AAC
-      args.push('-c:v', 'copy', '-c:a', 'aac');
-
-      // Мапинг:
-      args.push('-map', '0:v:0'); // Берем видео
-      args.push('-map', '1:a:0'); // Берем первый звук
-      
-      if (audioFile2) {
-        args.push('-map', '2:a:0'); // Берем второй звук
-      }
-
-      // КЛЮЧЕВОЙ МОМЕНТ: Обрезать всё под длину самого короткого потока.
-      // Поскольку видео обычно — это то, под что мы подстраиваемся, 
-      // результат будет идти ровно столько, сколько длится видео или звук (что короче).
-      args.push('-shortest');
-      
-      args.push('out.mp4');
+      // Видео копируем без потерь, аудио жмем в AAC
+      args.push('-c:v', 'copy', '-c:a', 'aac', '-shortest', 'out.mp4');
 
       await ffmpeg.exec(args);
 
@@ -96,7 +92,7 @@ export default function MediaMerger() {
       const url = URL.createObjectURL(new Blob([(data as any).buffer], { type: 'video/mp4' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `merged_${Date.now()}.mp4`;
+      link.download = `mixed_${Date.now()}.mp4`;
       link.click();
     } catch (error) {
       console.error(error);
@@ -142,7 +138,7 @@ export default function MediaMerger() {
           </button>
         </div>
       )}
-      {processing && <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666' }}>РЕНДЕРИНГ...</div>}
+      {processing && <div style={{ marginTop: '15px', fontSize: '9px', textAlign: 'center', color: '#666' }}>ИДЕТ СШИВАНИЕ И НАЛОЖЕНИЕ...</div>}
     </div>
   );
 }
